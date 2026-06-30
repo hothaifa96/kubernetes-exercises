@@ -1,55 +1,197 @@
-# Lab 1: Basic Pod Management
+# Lab: Deploy MongoDB and Mongo Express using ReplicaSets
 
 ## Objective
 
-Learn how to create, inspect, and delete Kubernetes Pods using kubectl commands.
+In this lab you will learn how to:
 
-## Prerequisites
+- Create ReplicaSets
+- Use labels and selectors
+- Configure environment variables
+- Expose an application using a NodePort Service
+- Allow one application to communicate with another using a Kubernetes Service
 
-- kubectl installed and configured to connect to a Kubernetes cluster
-- Basic understanding of YAML
-- minikube installed and running
+---
 
-## Exercise
+# So...
 
-### Step 1: Create a Pod Manifest
+Your company wants to deploy a MongoDB database along with a Mongo Express web interface.
 
-Create a file named `grafana-pod.yaml` with the following content:
+Mongo Express should connect to MongoDB using a Kubernetes Service.
 
-```yaml
-# create the yaml content for a pod that runs grafana
-# please review this image description # https://hub.docker.com/r/grafana/grafana
+Your task is to deploy both applications using ReplicaSets.
+
+---
+
+# Architecture
+
+Browser
+│
+▼
+NodePort Service
+│
+▼
+Mongo Express ReplicaSet (2 Pods)
+│
+▼
+Mongo Service (NodePort)
+│
+▼
+Mongo ReplicaSet (1 Pod)
+
+---
+
+# Requirements
+
+## MongoDB ReplicaSet
+
+ReplicaSet Name
+
+```
+mongo-rs
 ```
 
-### Step 2: Apply the Pod
+Replicas
 
-Use `kubectl apply` to create the pod:
+```
+1
+```
 
-### Step 3: Get Pod Information
+Image
 
-Check the status of your pod .
-- if its not running status then check the logs and debug the issue.
+```
+mongo:7
+```
 
-View detailed information about the pod 
-what is the pod ip? what is the pod node? what is the pod restart count?
+Container Port
 
-### Step 4: View Pod Logs
+```
+27017
+```
 
-Check the logs from the grafana container:
+Environment Variables
 
-### Step 5: Delete the Pod
+```
+MONGO_INITDB_ROOT_USERNAME=
 
-Remove the pod using kubectl
+MONGO_INITDB_ROOT_PASSWORD=
+```
 
-### Step 7: Verify Deletion
+---
 
-Confirm the pod has been deleted
+## Mongo Service
 
+Name
 
-## Challenge Exercise
+```
+mongo-service
+```
 
-1. Create a second pod named `busybox-pod` using the `busybox:latest` image 
-2. Apply the pod using `kubectl apply`
-3. Get all pods to verify both are running
-4. Delete only the busybox pod
-5. Delete the grafna pod using the manifest file not with `kubectl delete pod <name>`
+Type
+
+```
+NodePort
+```
+
+Port
+
+```
+27017
+```
+
+---
+
+## Mongo Express ReplicaSet
+
+ReplicaSet Name
+
+```
+mongo-express-rs
+```
+
+Replicas
+
+```
+2
+```
+
+Image
+
+```
+mongo-express:latest
+```
+
+Container Port
+
+```
+8081
+```
+
+Environment Variables
+
+```
+ME_CONFIG_MONGODB_ADMINUSERNAME=
+
+ME_CONFIG_MONGODB_ADMINPASSWORD=
+
+ME_CONFIG_MONGODB_SERVER=
+
+ME_CONFIG_BASICAUTH_USERNAME=
+
+ME_CONFIG_BASICAUTH_PASSWORD=
+
+```
+
+---
+
+## Mongo Express Service
+
+Name
+
+```
+mongo-express-service
+```
+
+Type
+
+```
+NodePort
+```
+
+Port
+
+```
+8081
+```
+
+NodePort
+
+```
+30081
+```
+
+---
+
+# Tasks
+
+1. Create the MongoDB ReplicaSet.
+2. Create the MongoDB ClusterIP Service.
+3. Verify MongoDB is running.
+4. Create the Mongo Express ReplicaSet.
+5. Create the Mongo Express NodePort Service.
+6. Verify both ReplicaSets.
+7. Scale Mongo Express to **4 replicas**.
+8. Scale Mongo Express back to **2 replicas**.
+9. Open:
+
+```
+http://<MINIKUBE-IP>:30081
+```
+or use :
+```
+kubectl service mongo-express-service
+```
+
+10. Verify Mongo Express successfully connects to MongoDB.
+
+---
+
