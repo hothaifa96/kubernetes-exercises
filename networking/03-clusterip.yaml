@@ -1,0 +1,130 @@
+# ============================================================
+# LAB 3: Pod-to-Deployment via ClusterIP Service
+# ============================================================
+# KEY CONCEPT:
+#   A ClusterIP Service assigns a stable virtual IP (VIP) that:
+#     • never changes (unlike Pod IPs)
+#     • load-balances across all healthy Pod replicas
+#     • is only reachable from INSIDE the cluster
+#
+# ARCHITECTURE:
+#
+#                            ClusterIP: <stable-VIP>:80
+#                                    │
+#              ┌─────────────────────▼──────────────────────┐
+#              │         Service: backend-clusterip          │
+#              └──────┬──────────────┬──────────────┬────────┘
+#                     │              │              │
+#              ┌──────▼────┐  ┌──────▼────┐  ┌──────▼────┐
+#              │ backend-0 │  │ backend-1 │  │ backend-2 │
+#              │  (nginx)  │  │  (nginx)  │  │  (nginx)  │
+#              └───────────┘  └───────────┘  └───────────┘
+#                     ▲
+#              ┌──────┴────────────────────────────────────┐
+#              │              curl-client Pod               │
+#              │  calls http://backend-clusterip:80         │
+#              └────────────────────────────────────────────┘
+#
+# DEPLOY:
+#   kubectl apply -f 03-clusterip.yaml
+#
+# WATCH CLIENT CALLING THE SERVICE:
+#   kubectl logs -f curl-client
+#
+# CHECK SERVICE AND ITS CLUSTER-IP:
+#   kubectl get svc backend-clusterip
+#   kubectl describe svc backend-clusterip
+#
+# SEE LOAD BALANCING ACROSS REPLICAS:
+#   kubectl exec -it curl-client -- sh
+#   > for i in $(seq 1 6); do curl -s http://backend-clusterip:80 | grep -i hostname; done
+#
+# SCALE REPLICAS (service adapts automatically):
+#   kubectl scale deployment backend --replicas=5
+#   kubectl get endpoints backend-clusterip
+#
+# CLEANUP:
+#   kubectl delete -f 03-clusterip.yaml
+# ============================================================
+---
+# ── Deployment: 3 nginx replicas ─────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    lab: "03-clusterip"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "32Mi"
+          limits:
+            cpu: "100m"
+            memory: "64Mi"
+---
+# ── ClusterIP Service: stable VIP load-balancing to backend Pods ──
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-clusterip
+  labels:
+    lab: "03-clusterip"
+spec:
+  type: ClusterIP       # default type — internal only
+  selector:
+    app: backend        # routes to all Pods with label app=backend
+  ports:
+  - name: http
+    port: 80            # the port clients use
+    targetPort: 80      # the port on the Pod
+---
+# ── Client Pod: calls the Service in a loop ───────────────────
+apiVersion: v1
+kind: Pod
+metadata:
+  name: curl-client
+  labels:
+    lab: "03-clusterip"
+spec:
+  containers:
+  - name: curl
+    image: curlimages/curl:8
+    command: ["/bin/sh", "-c"]
+    args:
+    - |
+      echo "=============================================="
+      echo " ClusterIP Service Demo"
+      echo " Calling http://backend-clusterip:80 every 8s"
+      echo "=============================================="
+      echo ""
+      echo "[client] Waiting 5s for backend Deployment to be ready..."
+      sleep 5
+      while true; do
+        echo ""
+        echo "── $(date) ──────────────────────────────────"
+        echo "[client] GET http://backend-clusterip:80"
+        curl -si http://backend-clusterip:80 | grep -E "HTTP|Server|<title>"
+        sleep 8
+      done
+    resources:
+      requests:
+        cpu: "10m"
+        memory: "16Mi"
+      limits:
+        cpu: "50m"
+        memory: "32Mi"

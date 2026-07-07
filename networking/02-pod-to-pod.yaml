@@ -1,0 +1,97 @@
+# ============================================================
+# LAB 2: Pod-to-Pod Communication (Direct IP, No Service)
+# ============================================================
+# KEY CONCEPT:
+#   Every Pod gets its own routable IP within the cluster.
+#   Pods CAN talk directly by IP — but this is fragile because
+#   Pod IPs change every time a Pod restarts or is rescheduled.
+#   → This is why Services exist!
+#
+# ARCHITECTURE:
+#
+#   ┌────────────────┐         direct IP         ┌────────────────┐
+#   │    pod-a       │ ◄──── <POD_A_IP>:80 ───── │    pod-b       │
+#   │  nginx server  │                            │  alpine shell  │
+#   └────────────────┘                            └────────────────┘
+#
+# DEPLOY:
+#   kubectl apply -f 02-pod-to-pod.yaml
+#
+# STEP 1 — Get Pod A's IP address:
+#   kubectl get pod pod-a -o wide
+#   # or use jsonpath:
+#   kubectl get pod pod-a -o jsonpath='{.status.podIP}'
+#
+# STEP 2 — Exec into Pod B and call Pod A by its IP:
+#   kubectl exec -it pod-b -- sh
+#   > wget -qO- http://<POD_A_IP>:80
+#   > curl http://<POD_A_IP>:80          # if you installed curl
+#
+# STEP 3 — Demonstrate why direct IPs are fragile:
+#   kubectl delete pod pod-a
+#   kubectl apply -f 02-pod-to-pod.yaml
+#   kubectl get pod pod-a -o wide         # ← IP changed!
+#   # Pod B now has a broken connection — must update IP manually.
+#   # ► In the next lab we fix this with a ClusterIP Service.
+#
+# CLEANUP:
+#   kubectl delete -f 02-pod-to-pod.yaml
+# ============================================================
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-a
+  labels:
+    lab: "02-pod-to-pod"
+    role: server
+spec:
+  containers:
+  - name: server
+    image: nginx:alpine
+    ports:
+    - containerPort: 80
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "32Mi"
+      limits:
+        cpu: "100m"
+        memory: "64Mi"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-b
+  labels:
+    lab: "02-pod-to-pod"
+    role: client
+spec:
+  containers:
+  - name: shell
+    image: alpine:3.19
+    command: ["/bin/sh", "-c"]
+    args:
+    - |
+      echo "=============================================="
+      echo " Pod-to-Pod Networking Demo"
+      echo " Pod B is ready for manual testing."
+      echo "=============================================="
+      echo ""
+      echo "[pod-b] Installing curl..."
+      apk add --no-cache curl -q 2>&1 | tail -1
+      echo "[pod-b] curl installed."
+      echo ""
+      echo "[pod-b] To test pod-to-pod:"
+      echo "  1. Get pod-a IP:  kubectl get pod pod-a -o wide"
+      echo "  2. Exec here:     kubectl exec -it pod-b -- sh"
+      echo "  3. Run:           curl http://<POD_A_IP>:80"
+      echo ""
+      sleep infinity
+    resources:
+      requests:
+        cpu: "10m"
+        memory: "16Mi"
+      limits:
+        cpu: "50m"
+        memory: "32Mi"

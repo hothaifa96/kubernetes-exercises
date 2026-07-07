@@ -1,0 +1,163 @@
+# ============================================================
+# LAB 6 — Part 1: Python Server Scripts (ConfigMap)
+# ============================================================
+# Two scripts stored as ConfigMap data and mounted into pods:
+#
+#   server.py    → shared by the 4 backend microservices
+#                  reads SERVICE_NAME, PORT, POD_IP from env
+#                  exposes: GET /        → "Hello from <service>!"
+#                           GET /ready  → JSON with pod_ip, hostname
+#                  writes access log to /var/log/app/access.log
+#                  (the logger sidecar tails this file)
+#
+#   frontend.py  → the frontend aggregator
+#                  calls /ready on all 4 backends via DNS names
+#                  exposes: GET /       → HTML page
+#                           GET /ready → JSON with ALL pod IPs
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: service-scripts
+  labels:
+    lab: "06-microservices"
+data:
+
+  # ── Shared backend server script ─────────────────────────────
+  server.py: |
+    #!/usr/bin/env python3
+    import http.server
+    import json
+    import os
+    import socket
+    import sys
+
+    SERVICE_NAME = os.environ.get("SERVICE_NAME", "unknown-service")
+    PORT         = int(os.environ.get("PORT", "8080"))
+    POD_IP       = os.environ.get("POD_IP", "")
+    LOG_FILE     = "/var/log/app/access.log"
+
+    def write_log(msg):
+        line = "[" + SERVICE_NAME + "] " + msg + "\n"
+        sys.stdout.write(line)
+        sys.stdout.flush()
+        try:
+            with open(LOG_FILE, "a") as f:
+                f.write(line)
+        except Exception:
+            pass
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/ready":
+                data = {
+                    "service":  SERVICE_NAME,
+                    "pod_ip":   POD_IP,
+                    "hostname": socket.gethostname(),
+                    "status":   "ready"
+                }
+                body = json.dumps(data, indent=2).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path == "/":
+                body = ("Hello from " + SERVICE_NAME + "!\n").encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def log_message(self, fmt, *args):
+            write_log(self.address_string() + " - " + (fmt % args))
+
+    write_log("Starting on 0.0.0.0:" + str(PORT))
+    http.server.HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+
+  # ── Frontend aggregator script ────────────────────────────────
+  frontend.py: |
+    #!/usr/bin/env python3
+    import http.server
+    import json
+    import os
+    import socket
+    import sys
+    import urllib.request
+    import urllib.error
+
+    SERVICE_NAME = "frontend"
+    PORT         = int(os.environ.get("PORT", "8080"))
+    POD_IP       = os.environ.get("POD_IP", "")
+    APP_ENV      = os.environ.get("APP_ENV", "production")
+    API_KEY      = os.environ.get("API_KEY", "")
+
+    BACKENDS = {
+        "order":          os.environ.get("order_URL",          "http://order-service:8080"),
+        "orders":        os.environ.get("ORDERS_URL",        "http://orders-service:8080"),
+        "products":      os.environ.get("PRODUCTS_URL",      "http://products-service:8080"),
+        "notifications": os.environ.get("NOTIFICATIONS_URL", "http://notifications-service:8080"),
+    }
+
+    def fetch_ready(name, url):
+        try:
+            req = urllib.request.urlopen(url + "/ready", timeout=3)
+            return json.loads(req.read().decode())
+        except Exception as e:
+            return {
+                "service": name,
+                "status": "unreachable",
+                "error": str(e),
+                "url": url
+            }
+
+    class FrontendHandler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/ready":
+                result = {
+                    "frontend": {
+                        "service":          "frontend",
+                        "pod_ip":           POD_IP,
+                        "hostname":         socket.gethostname(),
+                        "status":           "ready",
+                        "env":              APP_ENV,
+                        "api_key_set":      bool(API_KEY)
+                    }
+                }
+                for name, url in BACKENDS.items():
+                    result[name] = fetch_ready(name, url)
+                body = json.dumps(result, indent=2).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                html = (
+                    "<!DOCTYPE html><html><head><title>K8s Microservices Demo</title>"
+                    "<style>body{font-family:sans-serif;max-width:600px;margin:40px auto;padding:0 20px}"
+                    "h1{color:#2563eb}a{color:#2563eb}pre{background:#f1f5f9;padding:12px;border-radius:8px}"
+                    "</style></head><body>"
+                    "<h1>Kubernetes Microservices Demo</h1>"
+                    "<p>Environment: <strong>" + APP_ENV + "</strong></p>"
+                    "<p>Pod IP: <strong>" + POD_IP + "</strong></p>"
+                    "<p>Visit <a href='/ready'>/ready</a> to see all backend services and their Pod IPs.</p>"
+                    "</body></html>"
+                ).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", str(len(html)))
+                self.end_headers()
+                self.wfile.write(html)
+
+        def log_message(self, fmt, *args):
+            sys.stdout.write("[frontend] " + self.address_string() + " - " + (fmt % args) + "\n")
+            sys.stdout.flush()
+
+    sys.stdout.write("[frontend] Starting on 0.0.0.0:" + str(PORT) + "\n")
+    sys.stdout.flush()
+    http.server.HTTPServer(("0.0.0.0", PORT), FrontendHandler).serve_forever()

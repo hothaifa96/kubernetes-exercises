@@ -1,0 +1,91 @@
+# ============================================================
+# LAB 1: Container-to-Container Networking (Same Pod)
+# ============================================================
+# KEY CONCEPT:
+#   All containers in the same Pod share ONE network namespace.
+#   They communicate via localhost (127.0.0.1) — no Service needed.
+#   They also share the same IP address (the Pod IP).
+#
+# ARCHITECTURE:
+#
+#   ┌──────────────────── Pod: multi-container-pod ──────────────┐
+#   │                                                              │
+#   │   ┌──────────────┐    localhost:80    ┌──────────────────┐  │
+#   │   │   server     │ ◄──────────────── │     client        │  │
+#   │   │  (nginx)     │                   │  (curl in loop)   │  │
+#   │   └──────────────┘                   └──────────────────┘  │
+#   │                                                              │
+#   └──────────────────────────────────────────────────────────────┘
+#
+# DEPLOY:
+#   kubectl apply -f 01-container-to-container.yaml
+#
+# WATCH CLIENT CALLING SERVER VIA LOCALHOST:
+#   kubectl logs -f multi-container-pod -c client
+#
+# WATCH SERVER RECEIVING REQUESTS:
+#   kubectl logs -f multi-container-pod -c server
+#
+# EXEC INTO CLIENT AND TEST MANUALLY:
+#   kubectl exec -it multi-container-pod -c client -- sh
+#   > curl -v http://localhost:80
+#
+# PROVE THEY SHARE THE SAME IP:
+#   kubectl exec multi-container-pod -c server -- hostname -i
+#   kubectl exec multi-container-pod -c client -- hostname -i
+#   # Both print the same Pod IP!
+#
+# CLEANUP:
+#   kubectl delete -f 01-container-to-container.yaml
+# ============================================================
+apiVersion: v1
+kind: Pod
+metadata:
+  name: multi-container-pod
+  labels:
+    lab: "01-container-to-container"
+spec:
+  containers:
+
+  # ── CONTAINER 1: HTTP Server (nginx on port 80) ───────────────
+  - name: server
+    image: nginx:alpine
+    ports:
+    - containerPort: 80
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "32Mi"
+      limits:
+        cpu: "100m"
+        memory: "64Mi"
+
+  # ── CONTAINER 2: HTTP Client (calls server via localhost) ─────
+  - name: client
+    image: curlimages/curl:8
+    command: ["/bin/sh", "-c"]
+    args:
+    - |
+      echo "=============================================="
+      echo " Container-to-Container Networking Demo"
+      echo " Containers share the SAME network namespace"
+      echo " → communicate via localhost (127.0.0.1)"
+      echo "=============================================="
+      echo ""
+      echo "[client] Waiting 3s for the server container to start..."
+      sleep 3
+      echo "[client] Starting request loop every 10 seconds..."
+      while true; do
+        echo ""
+        echo "── $(date) ──────────────────────────────────"
+        echo "[client] Calling: GET http://localhost:80"
+        curl -si http://localhost:80 | grep -E "HTTP|Server|<title>"
+        sleep 10
+      done
+    resources:
+      requests:
+        cpu: "10m"
+        memory: "16Mi"
+      limits:
+        cpu: "50m"
+        memory: "32Mi"
