@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🍕 Pizza Order Simulator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:     #e63946;
+      --orange:  #f4a261;
+      --cream:   #f1faee;
+      --dark:    #1d3557;
+      --mid:     #457b9d;
+      --card:    #16324f;
+      --success: #2dc653;
+      --danger:  #e63946;
+      --warn:    #f4a261;
+      --text:    #e8f4f8;
+      --muted:   #8bb8cc;
+      --border:  #2a4a6b;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a1628;
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #1d3557 0%, #0a1628 100%);
+      border-bottom: 2px solid var(--red);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    header h1 { font-size: 1.75rem; font-weight: 700; }
+    header span.subtitle {
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: rgba(255,255,255,0.06);
+      padding: 0.25rem 0.75rem;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Cluster Status Banner ───────────────────────────── */
+    #status-banner {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .status-cell {
+      background: var(--card);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .status-cell .label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+    .status-cell .value {
+      font-size: 0.95rem;
+      font-weight: 600;
+      font-family: 'Courier New', monospace;
+      word-break: break-all;
+    }
+    .dot {
+      display: inline-block;
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .dot.green  { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .dot.red    { background: var(--danger);  box-shadow: 0 0 6px var(--danger); }
+    .dot.grey   { background: var(--muted); }
+    .dot.pulse  { animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse {
+      0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+    }
+
+    /* ── Main layout ─────────────────────────────────────── */
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--orange);
+      margin-bottom: 1rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Pizza grid ──────────────────────────────────────── */
+    #menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .pizza-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1rem;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      position: relative;
+    }
+    .pizza-card:hover {
+      border-color: var(--mid);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+    .pizza-card.selected {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(230,57,70,0.3);
+    }
+    .pizza-card .emoji  { font-size: 2.2rem; }
+    .pizza-card .name   { font-weight: 700; font-size: 1rem; }
+    .pizza-card .desc   { font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+    .pizza-card .price  {
+      margin-top: auto;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--orange);
+    }
+    .pizza-card .badge-selected {
+      position: absolute;
+      top: 8px; right: 8px;
+      background: var(--red);
+      color: white;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 99px;
+      display: none;
+    }
+    .pizza-card.selected .badge-selected { display: inline; }
+
+    /* ── Order form ──────────────────────────────────────── */
+    #order-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .order-row {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    #customer-name {
+      flex: 1;
+      min-width: 200px;
+      background: #0a1628;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem 1rem;
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #customer-name:focus { border-color: var(--mid); }
+    #order-selection-hint {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+    #order-btn {
+      background: var(--red);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.65rem 1.75rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    #order-btn:hover:not(:disabled) { background: #c1121f; }
+    #order-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #order-feedback {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      display: none;
+    }
+    #order-feedback.success {
+      background: rgba(45,198,83,0.12);
+      border: 1px solid var(--success);
+      color: var(--success);
+      display: block;
+    }
+    #order-feedback.error {
+      background: rgba(230,57,70,0.12);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      display: block;
+    }
+
+    /* ── Orders table ────────────────────────────────────── */
+    #orders-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    th {
+      text-align: left;
+      padding: 0.6rem 1rem;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 0.7rem 1rem;
+      border-bottom: 1px solid rgba(42,74,107,0.5);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .tag-pod {
+      background: rgba(69,123,157,0.2);
+      border: 1px solid var(--mid);
+      color: var(--mid);
+      font-family: monospace;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+    }
+    .tag-ip {
+      background: rgba(244,162,97,0.15);
+      border: 1px solid var(--orange);
+      color: var(--orange);
+      font-family: monospace;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+    }
+    .no-orders {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* ── Footer ──────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+    }
+
+    /* ── Loading spinner ─────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🍕 Pizza Order Simulator</h1>
+  <span class="subtitle">Kubernetes Lab 03</span>
+</header>
+
+<div id="status-banner">
+  <div class="status-cell">
+    <span class="label">Backend Pod Name</span>
+    <span class="value" id="pod-name"><span class="dot grey pulse"></span>loading…</span>
+  </div>
+  <div class="status-cell">
+    <span class="label">Backend Pod IP</span>
+    <span class="value" id="pod-ip"><span class="dot grey pulse"></span>loading…</span>
+  </div>
+  <div class="status-cell">
+    <span class="label">Database</span>
+    <span class="value" id="db-status"><span class="dot grey pulse"></span>checking…</span>
+  </div>
+  <div class="status-cell">
+    <span class="label">DB URI</span>
+    <span class="value" id="db-uri" style="font-size:0.78rem">—</span>
+  </div>
+</div>
+
+<main>
+
+  <section style="margin-bottom:2rem;">
+    <h2>Our Menu</h2>
+    <div id="menu-grid">
+      <div style="color:var(--muted);grid-column:1/-1;padding:1rem;">Loading menu…</div>
+    </div>
+  </section>
+
+  <section id="order-section">
+    <h2>Place an Order</h2>
+    <p id="order-selection-hint">Select a pizza above, then enter your name and click Order.</p>
+    <div class="order-row">
+      <input id="customer-name" type="text" placeholder="Your name" maxlength="40" />
+      <button id="order-btn" disabled>Order</button>
+    </div>
+    <div id="order-feedback"></div>
+  </section>
+
+  <section id="orders-section">
+    <h2>Recent Orders <span id="orders-db-hint" style="font-size:0.75rem;color:var(--muted);font-weight:400;"></span></h2>
+    <div id="orders-container"><p class="no-orders">No orders yet.</p></div>
+  </section>
+
+</main>
+
+<footer>
+  Status auto-refreshes every 5 s &nbsp;·&nbsp; Orders refresh every 10 s &nbsp;·&nbsp;
+  Pod info is injected by Kubernetes via the <strong>Downward API</strong>
+</footer>
+
+<script>
+  let selectedPizzaId = null;
+  let selectedPizzaName = "";
+
+  // ── Fetch backend info ──────────────────────────────────
+  async function fetchInfo() {
+    try {
+      const r = await fetch("/api/info");
+      const d = await r.json();
+
+      document.getElementById("pod-name").innerHTML =
+        `<span class="dot green"></span>${d.pod_name || "unknown"}`;
+      document.getElementById("pod-ip").innerHTML =
+        `<span class="dot green"></span>${d.pod_ip || "unknown"}`;
+
+      const dbDot = d.db_connected
+        ? `<span class="dot green"></span>Connected`
+        : `<span class="dot red"></span>Disconnected`;
+      document.getElementById("db-status").innerHTML = dbDot;
+      document.getElementById("db-uri").textContent = d.db_uri || "—";
+    } catch (e) {
+      document.getElementById("pod-name").innerHTML =
+        `<span class="dot red"></span>Backend unreachable`;
+      document.getElementById("pod-ip").innerHTML =
+        `<span class="dot red"></span>—`;
+      document.getElementById("db-status").innerHTML =
+        `<span class="dot red"></span>Unknown`;
+    }
+  }
+
+  // ── Fetch menu ──────────────────────────────────────────
+  async function fetchMenu() {
+    try {
+      const r = await fetch("/api/pizzas");
+      const d = await r.json();
+      renderMenu(d.pizzas || []);
+    } catch (e) {
+      document.getElementById("menu-grid").innerHTML =
+        `<div style="color:var(--danger);grid-column:1/-1;padding:1rem;">⚠ Failed to load menu — is the backend running?</div>`;
+    }
+  }
+
+  function renderMenu(pizzas) {
+    const grid = document.getElementById("menu-grid");
+    grid.innerHTML = "";
+    pizzas.forEach(p => {
+      const card = document.createElement("div");
+      card.className = "pizza-card";
+      card.dataset.id = p.id;
+      card.dataset.name = p.name;
+      card.innerHTML = `
+        <span class="badge-selected">✓ Selected</span>
+        <div class="emoji">${p.emoji}</div>
+        <div class="name">${p.name}</div>
+        <div class="desc">${p.description}</div>
+        <div class="price">$${p.price.toFixed(2)}</div>
+      `;
+      card.addEventListener("click", () => selectPizza(p.id, p.name, card));
+      grid.appendChild(card);
+    });
+  }
+
+  function selectPizza(id, name, cardEl) {
+    document.querySelectorAll(".pizza-card").forEach(c => c.classList.remove("selected"));
+    cardEl.classList.add("selected");
+    selectedPizzaId = id;
+    selectedPizzaName = name;
+    document.getElementById("order-selection-hint").textContent =
+      `Selected: ${name} — enter your name and click Order.`;
+    updateOrderBtn();
+  }
+
+  // ── Order button state ──────────────────────────────────
+  function updateOrderBtn() {
+    const name = document.getElementById("customer-name").value.trim();
+    document.getElementById("order-btn").disabled = !(selectedPizzaId && name.length > 0);
+  }
+
+  document.getElementById("customer-name").addEventListener("input", updateOrderBtn);
+
+  // ── Place order ─────────────────────────────────────────
+  document.getElementById("order-btn").addEventListener("click", async () => {
+    const customer = document.getElementById("customer-name").value.trim();
+    if (!selectedPizzaId || !customer) return;
+
+    const btn = document.getElementById("order-btn");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span>Ordering…`;
+
+    const feedback = document.getElementById("order-feedback");
+    feedback.className = "";
+    feedback.style.display = "none";
+
+    try {
+      const r = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pizza_id: selectedPizzaId, customer }),
+      });
+      const d = await r.json();
+
+      if (r.ok && d.success) {
+        const saved = d.order.saved_to_db
+          ? "Saved to MongoDB ✓"
+          : "⚠ DB unavailable — order not persisted";
+        feedback.className = "success";
+        feedback.innerHTML = `
+          🍕 Order placed! <strong>${d.order.pizza_emoji} ${d.order.pizza_name}</strong>
+          for <strong>${d.order.customer}</strong> — $${d.order.price.toFixed(2)}<br>
+          <small>Served by pod <code>${d.order.served_by_pod}</code>
+          (${d.order.served_by_ip}) &nbsp;·&nbsp; ${saved}</small>
+        `;
+        document.getElementById("customer-name").value = "";
+        selectedPizzaId = null;
+        selectedPizzaName = "";
+        document.querySelectorAll(".pizza-card").forEach(c => c.classList.remove("selected"));
+        document.getElementById("order-selection-hint").textContent =
+          "Select a pizza above, then enter your name and click Order.";
+        fetchOrders();
+      } else {
+        feedback.className = "error";
+        feedback.textContent = `Error: ${d.error || "Unknown error"}`;
+      }
+    } catch (e) {
+      feedback.className = "error";
+      feedback.textContent = `Network error: ${e.message}`;
+    }
+
+    btn.innerHTML = "Order";
+    updateOrderBtn();
+  });
+
+  // ── Fetch recent orders ─────────────────────────────────
+  async function fetchOrders() {
+    try {
+      const r = await fetch("/api/orders");
+      const d = await r.json();
+      renderOrders(d.orders || [], d.db_connected);
+    } catch (e) {
+      document.getElementById("orders-container").innerHTML =
+        `<p class="no-orders" style="color:var(--danger);">⚠ Could not load orders.</p>`;
+    }
+  }
+
+  function renderOrders(orders, dbConnected) {
+    const hint = document.getElementById("orders-db-hint");
+    hint.textContent = dbConnected ? "(live from MongoDB)" : "(DB disconnected)";
+
+    const container = document.getElementById("orders-container");
+    if (!orders.length) {
+      container.innerHTML = `<p class="no-orders">No orders yet — place one above!</p>`;
+      return;
+    }
+
+    const rows = orders.map(o => `
+      <tr>
+        <td>${o.pizza_emoji} ${o.pizza_name}</td>
+        <td>${o.customer}</td>
+        <td>$${parseFloat(o.price).toFixed(2)}</td>
+        <td><span class="tag-pod">${o.served_by_pod}</span></td>
+        <td><span class="tag-ip">${o.served_by_ip}</span></td>
+        <td style="color:var(--muted);font-size:0.8rem;">${o.timestamp}</td>
+      </tr>
+    `).join("");
+
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Pizza</th>
+            <th>Customer</th>
+            <th>Price</th>
+            <th>Served by Pod</th>
+            <th>Pod IP</th>
+            <th>Time (UTC)</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  // ── Init & polling ──────────────────────────────────────
+  fetchInfo();
+  fetchMenu();
+  fetchOrders();
+
+  setInterval(fetchInfo,   5000);
+  setInterval(fetchOrders, 10000);
+</script>
+
+</body>
+</html>
