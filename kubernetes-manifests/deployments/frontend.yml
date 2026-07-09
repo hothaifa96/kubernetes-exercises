@@ -1,6 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  namespace: m-store
   name: frontend
 spec:
   selector:
@@ -19,3 +20,8 @@ spec:
         env:
           - name: PRODUCTS_URL
             value: http://product.m-store.svc.cluster.local:3003
+          - name: ORDERS_URL
+            value: http://order.m-store.svc.cluster.local:3002
+          - name: AUTH_URL
+            value: http://auth-service.m-store.svc.cluster.local:3001
+
