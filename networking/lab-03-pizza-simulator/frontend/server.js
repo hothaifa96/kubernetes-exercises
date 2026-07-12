@@ -10,7 +10,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 async function proxyGet(backendPath, res) {
-  try {
+  try { m
     const response = await axios.get(`${BACKEND_URL}${backendPath}`, { timeout: 6000 });
     res.json(response.data);
   } catch (err) {

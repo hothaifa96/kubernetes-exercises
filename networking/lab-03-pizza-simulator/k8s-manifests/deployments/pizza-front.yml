@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: pizza
+  name: pizza-dashboard
+spec:
+  replicas: 1
+  strategy:
+   type: RollingUpdate
+   rollingUpdate:
+     maxUnavailable: 0
+     maxSurge: 2
+  selector:
+    matchLabels:
+      app: pizza-dashboard
+  template:
+    metadata:
+      labels:
+        app: pizza-dashboard
+        tier: frontend
+    spec:
+      containers:
+      - name: pizza-dashboard
+        image: pizza-dashboard:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+        env:
+          - name : BACKEND_URL
+            value: backend.pizza.svc.cluster.local

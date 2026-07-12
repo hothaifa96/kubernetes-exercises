@@ -11,7 +11,8 @@ CORS(app)
 
 POD_NAME = os.environ.get("POD_NAME", "unknown-pod")
 POD_IP = os.environ.get("POD_IP", "unknown-ip")
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+MONGO_URI = f'mongodb://{os.environ.get("DB_USER","mongo")}:{os.environ.get("DB_PASSWORD","mongo")}@{os.environ.get("DB_HOST", "localhost")}:27017'
+# mongodb://username:password@host:port/databaseName
 DB_NAME = os.environ.get("DB_NAME", "pizzadb")
 
 PIZZAS = [

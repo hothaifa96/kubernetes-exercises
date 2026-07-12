@@ -1,10 +1,11 @@
 #!/bin/bash
 
 TARGET="${TARGET:-localhost}"
+# x = x if x else 'localhost'
 
 echo "Starting network probe loop"
 echo "Target: $TARGET"
-echo "Press Ctrl+C to stop"
+echo "Press Ctrl+C to stop ......... "
 echo ""
 
 while true; do

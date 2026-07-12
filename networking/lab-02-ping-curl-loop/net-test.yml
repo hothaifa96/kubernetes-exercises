@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: lab-networking
+  name: net-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: net-test
+  template:
+    metadata:
+      labels:
+        app: net-test
+    spec:
+      containers:
+      - name: net-test
+        image: network-test:v2
+        env:
+         - name: TARGET
+           value: nginx-svc.lab-networking.svc.cluster.local:80
+      
