@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: pizza-config
-  namespace: pizza
-data:
-  host: mongo.pizza.svc.cluster.local
-  port: "27017"
-  database: pizza

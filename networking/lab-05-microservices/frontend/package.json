@@ -1,7 +1,7 @@
 {
-  "name": "pizza-frontend",
+  "name": "microservices-frontend",
   "version": "1.0.0",
-  "description": "Pizza Order Simulator — Kubernetes Lab 03 Frontend",
+  "description": "Microservices Lab 05 Frontend",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

@@ -7,11 +7,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
 
-ENV POD_NAME=local-pod
-ENV POD_IP=127.0.0.1
-ENV MONGO_URI=mongodb://localhost:27017
-ENV DB_NAME=pizzadb
+ENV AUTH_SECRET_KEY=default-secret-key-change-in-production
+ENV AUTH_USER=admin
+ENV AUTH_PASSWORD=secret
+ENV TOKEN_EXPIRY_HOURS=24
 
-EXPOSE 5000
+EXPOSE 5001
 
 CMD ["python", "app.py"]

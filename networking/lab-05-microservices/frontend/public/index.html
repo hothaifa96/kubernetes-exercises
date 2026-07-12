@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Microservices Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --primary: #3b82f6;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    header {
+      max-width: 1200px;
+      margin: 0 auto 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h1 { font-size: 1.75rem; font-weight: 700; }
+    h2 { font-size: 1.1rem; font-weight: 600; margin: 1.5rem 0 1rem; color: var(--primary); }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .status-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .status-card .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .status-card .value {
+      font-size: 0.9rem;
+      font-family: monospace;
+      word-break: break-all;
+    }
+
+    .status-card .status {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .status-card .status.online {
+      background: rgba(34,197,94,0.2);
+      color: var(--success);
+      border: 1px solid var(--success);
+    }
+
+    .status-card .status.offline {
+      background: rgba(239,68,68,0.2);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+
+    .login-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    input {
+      flex: 1;
+      min-width: 200px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem 1rem;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    input:focus { border-color: var(--primary); }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.65rem 1.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover:not(:disabled) { background: #2563eb; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.danger { background: var(--danger); }
+    button.danger:hover:not(:disabled) { background: #dc2626; }
+
+    .items-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+
+    .items-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .item-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      position: relative;
+    }
+
+    .item-card .name { font-weight: 600; margin-bottom: 0.25rem; }
+    .item-card .value { font-size: 0.85rem; color: var(--muted); }
+    .item-card .delete-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: var(--danger);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.7rem;
+      cursor: pointer;
+    }
+
+    .add-item-form {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .message {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-top: 1rem;
+      display: none;
+    }
+
+    .message.success {
+      background: rgba(34,197,94,0.15);
+      border: 1px solid var(--success);
+      color: var(--success);
+      display: block;
+    }
+
+    .message.error {
+      background: rgba(239,68,68,0.15);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      display: block;
+    }
+
+    .locked-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .locked-content {
+      text-align: center;
+      max-width: 400px;
+      padding: 2rem;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🔌 Microservices Dashboard</h1>
+</header>
+
+<div class="container">
+
+  <div class="status-grid">
+    <div class="status-card">
+      <div class="label">Auth Service</div>
+      <div class="value" id="auth-url">Loading…</div>
+      <div style="margin-top:0.5rem"><span class="status" id="auth-status">Checking…</span></div>
+    </div>
+    <div class="status-card">
+      <div class="label">Data Service</div>
+      <div class="value" id="data-url">Loading…</div>
+      <div style="margin-top:0.5rem"><span class="status" id="data-status">Checking…</span></div>
+    </div>
+    <div class="status-card">
+      <div class="label">Frontend User</div>
+      <div class="value" id="frontend-user">Loading…</div>
+    </div>
+  </div>
+
+  <div class="login-section">
+    <h2>Authentication</h2>
+    <div class="form-row">
+      <input id="username" type="text" placeholder="Username" />
+      <input id="password" type="password" placeholder="Password" />
+      <button id="login-btn">Login</button>
+      <button id="logout-btn" class="danger hidden">Logout</button>
+    </div>
+    <div id="auth-message" class="message"></div>
+  </div>
+
+  <div class="items-section">
+    <h2>Data Items</h2>
+    <div id="items-container">
+      <p style="color:var(--muted);font-style:italic;">Login to view items</p>
+    </div>
+    <div class="add-item-form hidden" id="add-item-form">
+      <input id="item-name" type="text" placeholder="Item name" />
+      <input id="item-value" type="text" placeholder="Item value" />
+      <button id="add-item-btn">Add Item</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let authToken = null;
+  let authInterval = null;
+  let dataInterval = null;
+
+  async function fetchConfig() {
+    try {
+      const r = await fetch("/api/config");
+      const d = await r.json();
+      document.getElementById("auth-url").textContent = d.auth_service;
+      document.getElementById("data-url").textContent = d.data_service;
+      document.getElementById("frontend-user").textContent = d.frontend_user;
+    } catch (e) {
+      document.getElementById("auth-url").textContent = "Failed to load";
+      document.getElementById("data-url").textContent = "Failed to load";
+    }
+  }
+
+  async function checkAuth() {
+    try {
+      const r = await fetch("/api/auth/health");
+      const el = document.getElementById("auth-status");
+      if (r.ok) {
+        el.textContent = "Online";
+        el.className = "status online";
+      } else {
+        el.textContent = "Offline";
+        el.className = "status offline";
+      }
+    } catch (e) {
+      const el = document.getElementById("auth-status");
+      el.textContent = "Offline";
+      el.className = "status offline";
+    }
+  }
+
+  async function checkData() {
+    try {
+      const r = await fetch("/api/data/health");
+      const el = document.getElementById("data-status");
+      if (r.ok) {
+        el.textContent = "Online";
+        el.className = "status online";
+      } else {
+        el.textContent = "Offline";
+        el.className = "status offline";
+      }
+    } catch (e) {
+      const el = document.getElementById("data-status");
+      el.textContent = "Offline";
+      el.className = "status offline";
+    }
+  }
+
+  async function login() {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value;
+    const msg = document.getElementById("auth-message");
+
+    if (!username || !password) {
+      msg.className = "message error";
+      msg.textContent = "Username and password required";
+      return;
+    }
+
+    try {
+      const r = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const d = await r.json();
+
+      if (r.ok && d.token) {
+        authToken = d.token;
+        msg.className = "message success";
+        msg.textContent = `Logged in as ${username}`;
+        document.getElementById("login-btn").classList.add("hidden");
+        document.getElementById("logout-btn").classList.remove("hidden");
+        document.getElementById("add-item-form").classList.remove("hidden");
+        fetchItems();
+      } else {
+        msg.className = "message error";
+        msg.textContent = d.error || "Login failed";
+      }
+    } catch (e) {
+      msg.className = "message error";
+      msg.textContent = `Network error: ${e.message}`;
+    }
+  }
+
+  async function logout() {
+    authToken = null;
+    document.getElementById("auth-message").style.display = "none";
+    document.getElementById("login-btn").classList.remove("hidden");
+    document.getElementById("logout-btn").classList.add("hidden");
+    document.getElementById("add-item-form").classList.add("hidden");
+    document.getElementById("items-container").innerHTML =
+      '<p style="color:var(--muted);font-style:italic;">Login to view items</p>';
+  }
+
+  async function fetchItems() {
+    if (!authToken) return;
+
+    try {
+      const r = await fetch("/api/data/items", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const d = await r.json();
+
+      if (r.ok) {
+        renderItems(d.items || []);
+      } else {
+        document.getElementById("items-container").innerHTML =
+          `<p style="color:var(--danger);">${d.error || "Failed to load items"}</p>`;
+      }
+    } catch (e) {
+      document.getElementById("items-container").innerHTML =
+        `<p style="color:var(--danger);">Network error: ${e.message}</p>`;
+    }
+  }
+
+  function renderItems(items) {
+    const container = document.getElementById("items-container");
+    if (!items.length) {
+      container.innerHTML = '<p style="color:var(--muted);font-style:italic;">No items yet</p>';
+      return;
+    }
+
+    const grid = document.createElement("div");
+    grid.className = "items-grid";
+
+    items.forEach(item => {
+      const card = document.createElement("div");
+      card.className = "item-card";
+      card.innerHTML = `
+        <button class="delete-btn" onclick="deleteItem('${item.id}')">✕</button>
+        <div class="name">${item.name}</div>
+        <div class="value">${item.value}</div>
+      `;
+      grid.appendChild(card);
+    });
+
+    container.innerHTML = "";
+    container.appendChild(grid);
+  }
+
+  async function addItem() {
+    const name = document.getElementById("item-name").value.trim();
+    const value = document.getElementById("item-value").value.trim();
+
+    if (!name || !value) return;
+
+    try {
+      const r = await fetch("/api/data/items", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ name, value }),
+      });
+      const d = await r.json();
+
+      if (r.ok) {
+        document.getElementById("item-name").value = "";
+        document.getElementById("item-value").value = "";
+        fetchItems();
+      } else {
+        alert(d.error || "Failed to add item");
+      }
+    } catch (e) {
+      alert(`Network error: ${e.message}`);
+    }
+  }
+
+  async function deleteItem(id) {
+    if (!confirm("Delete this item?")) return;
+
+    try {
+      const r = await fetch(`/api/data/items/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (r.ok) {
+        fetchItems();
+      } else {
+        alert("Failed to delete item");
+      }
+    } catch (e) {
+      alert(`Network error: ${e.message}`);
+    }
+  }
+
+  document.getElementById("login-btn").addEventListener("click", login);
+  document.getElementById("logout-btn").addEventListener("click", logout);
+  document.getElementById("add-item-btn").addEventListener("click", addItem);
+
+  fetchConfig();
+  checkAuth();
+  checkData();
+
+  authInterval = setInterval(checkAuth, 5000);
+  dataInterval = setInterval(checkData, 5000);
+</script>
+
+</body>
+</html>
