@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kubernetes Storage: PV, PVC, and StorageClass — Interactive Tutorial</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --primary: #3b82f6;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --purple: #a855f7;
+      --cyan: #06b6d4;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 2rem;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    header {
+      text-align: center;
+      padding: 3rem 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 3rem;
+    }
+
+    h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 1rem; }
+    h2 { font-size: 1.5rem; font-weight: 600; margin: 2rem 0 1rem; color: var(--primary); }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1.5rem 0 0.75rem; color: var(--cyan); }
+    p { margin-bottom: 1rem; color: var(--muted); }
+    code {
+      background: rgba(59,130,246,0.15);
+      border: 1px solid var(--primary);
+      border-radius: 4px;
+      padding: 0.2rem 0.5rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      color: var(--primary);
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .nav-tab {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .nav-tab:hover { border-color: var(--primary); color: var(--text); }
+    .nav-tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .diagram {
+      background: #0a1628;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 1.5rem 0;
+      text-align: center;
+    }
+
+    .diagram-box {
+      display: inline-block;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      margin: 0.5rem;
+      min-width: 140px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .diagram-box:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .diagram-box.pv { border-color: var(--purple); }
+    .diagram-box.pvc { border-color: var(--cyan); }
+    .diagram-box.sc { border-color: var(--warning); }
+    .diagram-box.pod { border-color: var(--success); }
+
+    .diagram-box .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+    .diagram-box .name { font-weight: 700; font-size: 1rem; margin-top: 0.25rem; }
+    .diagram-box .desc { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+
+    .arrow {
+      display: inline-block;
+      color: var(--muted);
+      font-size: 1.5rem;
+      margin: 0 0.5rem;
+      vertical-align: middle;
+    }
+
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .code-block {
+      background: #0a1628;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      margin: 1rem 0;
+    }
+
+    .code-block .comment { color: #6b7280; }
+    .code-block .key { color: var(--cyan); }
+    .code-block .string { color: var(--success); }
+    .code-block .number { color: var(--warning); }
+
+    .interactive-demo {
+      background: #0a1628;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 1.5rem 0;
+    }
+
+    .demo-controls {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .demo-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.65rem 1.25rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .demo-btn:hover { background: #2563eb; }
+    .demo-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .demo-btn.success { background: var(--success); }
+    .demo-btn.danger { background: var(--danger); }
+
+    .demo-output {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      min-height: 150px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+    }
+
+    .demo-output .log { margin: 0.25rem 0; }
+    .demo-output .log.success { color: var(--success); }
+    .demo-output .log.error { color: var(--danger); }
+    .demo-output .log.info { color: var(--cyan); }
+
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+
+    .comparison-table th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      background: var(--card);
+      border-bottom: 2px solid var(--border);
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .comparison-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .comparison-table tr:last-child td { border-bottom: none; }
+
+    .highlight-box {
+      background: rgba(168,85,247,0.1);
+      border-left: 4px solid var(--purple);
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .highlight-box.warning {
+      background: rgba(245,158,11,0.1);
+      border-left-color: var(--warning);
+    }
+
+    .highlight-box.success {
+      background: rgba(34,197,94,0.1);
+      border-left-color: var(--success);
+    }
+
+    .tooltip {
+      position: relative;
+      display: inline-block;
+      cursor: help;
+      border-bottom: 1px dotted var(--muted);
+    }
+
+    .tooltip:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      z-index: 100;
+    }
+
+    .quiz-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+    }
+
+    .quiz-question {
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .quiz-option {
+      background: #0a1628;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .quiz-option:hover { border-color: var(--primary); }
+    .quiz-option.correct { background: rgba(34,197,94,0.2); border-color: var(--success); }
+    .quiz-option.incorrect { background: rgba(239,68,68,0.2); border-color: var(--danger); }
+
+    .quiz-feedback {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .quiz-feedback.show { display: block; }
+    .quiz-feedback.correct { background: rgba(34,197,94,0.15); color: var(--success); }
+    .quiz-feedback.incorrect { background: rgba(239,68,68,0.15); color: var(--danger); }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      margin-top: 3rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+<header>
+  <h1>💾 Kubernetes Storage</h1>
+  <p>PersistentVolume (PV) • PersistentVolumeClaim (PVC) • StorageClass</p>
+  <p style="margin-top:1rem;color:var(--muted);">Interactive Tutorial for DevOps Engineers</p>
+</header>
+
+<nav class="nav-tabs">
+  <div class="nav-tab active" onclick="showSection('concepts')">Concepts</div>
+  <div class="nav-tab" onclick="showSection('storageclass')">StorageClass</div>
+  <div class="nav-tab" onclick="showSection('pv')">PersistentVolume</div>
+  <div class="nav-tab" onclick="showSection('pvc')">PersistentVolumeClaim</div>
+  <div class="nav-tab" onclick="showSection('binding')">Binding Flow</div>
+  <div class="nav-tab" onclick="showSection('demo')">Interactive Demo</div>
+  <div class="nav-tab" onclick="showSection('quiz')">Quiz</div>
+</nav>
+
+<!-- CONCEPTS SECTION -->
+<section id="concepts" class="section active">
+  <h2>Core Concepts</h2>
+
+  <div class="card">
+    <h3>Why Storage Matters in Kubernetes?</h3>
+    <p>
+      Containers are <strong>ephemeral</strong> — when a pod dies, all data in its filesystem is lost.
+      For stateful applications (databases, logs, file uploads), you need <strong>persistent storage</strong>
+      that survives pod restarts and rescheduling.
+    </p>
+    <div class="highlight-box">
+      <strong>Key Insight:</strong> Kubernetes decouples storage from compute. A pod can be rescheduled to any node,
+      but its data remains accessible via a PersistentVolume.
+    </div>
+  </div>
+
+  <div class="diagram">
+    <h3 style="margin-bottom:1.5rem;color:var(--text);">The Three Storage Primitives</h3>
+    <div class="flow-diagram">
+      <div class="diagram-box sc" onclick="showSection('storageclass')">
+        <div class="label">StorageClass</div>
+        <div class="name">StorageClass</div>
+        <div class="desc">Defines storage types</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="diagram-box pv" onclick="showSection('pv')">
+        <div class="label">PersistentVolume</div>
+        <div class="name">PV</div>
+        <div class="desc">Actual storage resource</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="diagram-box pvc" onclick="showSection('pvc')">
+        <div class="label">PersistentVolumeClaim</div>
+        <div class="name">PVC</div>
+        <div class="desc">Request for storage</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="diagram-box pod">
+        <div class="label">Pod</div>
+        <div class="name">Pod</div>
+        <div class="desc">Mounts the PVC</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Quick Comparison</h3>
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>Resource</th>
+          <th>Scope</th>
+          <th>Who Creates?</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>StorageClass</strong></td>
+          <td>Cluster-wide</td>
+          <td>Cluster Admin</td>
+          <td>Defines storage provisioner and parameters</td>
+        </tr>
+        <tr>
+          <td><strong>PersistentVolume</strong></td>
+          <td>Cluster-wide</td>
+          <td>Admin or Dynamic Provisioning</td>
+          <td>Represents actual storage (disk, NFS, etc.)</td>
+        </tr>
+        <tr>
+          <td><strong>PersistentVolumeClaim</strong></td>
+          <td>Namespace-scoped</td>
+          <td>Developer/User</td>
+          <td>Requests storage from available PVs</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Static vs Dynamic Provisioning</h3>
+    <p>
+      <strong>Static Provisioning:</strong> Admin manually creates PVs. PVCs bind to existing PVs.
+      Good for predictable, pre-allocated storage.
+    </p>
+    <p>
+      <strong>Dynamic Provisioning:</strong> When a PVC is created, the StorageClass automatically
+      provisions a new PV. This is the modern, recommended approach for cloud environments.
+    </p>
+    <div class="highlight-box warning">
+      <strong>Minikube Note:</strong> Minikube includes a default StorageClass called <code>standard</code>
+      that uses the host's filesystem. This makes dynamic provisioning work out of the box.
+    </div>
+  </div>
+</section>
+
+<!-- STORAGECLASS SECTION -->
+<section id="storageclass" class="section">
+  <h2>StorageClass</h2>
+
+  <div class="card">
+    <h3>What is a StorageClass?</h3>
+    <p>
+      A StorageClass defines different "classes" of storage. It specifies which <strong>provisioner</strong>
+      to use (e.g., AWS EBS, GCE PD, Azure Disk, local storage) and any parameters for that storage type.
+    </p>
+    <p>
+      Think of it as a <strong>storage profile</strong> — "fast SSD", "standard HDD", "NFS share", etc.
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>Key Fields</h3>
+    <ul style="margin-left:1.5rem;color:var(--muted);">
+      <li><strong>provisioner:</strong> The driver that creates the actual storage (e.g., <code>kubernetes.io/aws-ebs</code>)</li>
+      <li><strong>parameters:</strong> Provider-specific settings (e.g., IOPS, type, replication)</li>
+      <li><strong>reclaimPolicy:</strong> What happens when PVC is deleted (<code>Delete</code> or <code>Retain</code>)</li>
+      <li><strong>volumeBindingMode:</strong> When binding happens (<code>Immediate</code> or <code>WaitForFirstConsumer</code>)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Example: StorageClass for Fast SSD</h3>
+    <div class="code-block">
+<span class="comment"># storageclass-fast-ssd.yaml</span>
+<span class="key">apiVersion:</span> storage.k8s.io/v1
+<span class="key">kind:</span> StorageClass
+<span class="key">metadata:</span>
+  <span class="key">name:</span> <span class="string">fast-ssd</span>
+<span class="key">provisioner:</span> kubernetes.io/aws-ebs
+<span class="key">parameters:</span>
+  <span class="key">type:</span> <span class="string">gp3</span>
+  <span class="key">iops:</span> <span class="string">"3000"</span>
+  <span class="key">encrypted:</span> <span class="string">"true"</span>
+<span class="key">reclaimPolicy:</span> Delete
+<span class="key">volumeBindingMode:</span> WaitForFirstConsumer
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Common Provisioners</h3>
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>Cloud</th>
+          <th>Provisioner</th>
+          <th>Storage Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>AWS</td><td><code>kubernetes.io/aws-ebs</code></td><td>EBS volumes</td></tr>
+        <tr><td>GCP</td><td><code>kubernetes.io/gce-pd</code></td><td>Persistent Disks</td></tr>
+        <tr><td>Azure</td><td><code>kubernetes.io/azure-disk</code></td><td>Azure Disks</td></tr>
+        <tr><td>Minikube</td><td><code>k8s.io/minikube-hostpath</code></td><td>Host directory</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="highlight-box success">
+    <strong>Pro Tip:</strong> Always check the default StorageClass in your cluster with
+    <code>kubectl get storageclass</code>. If one is marked as default, PVCs without a specified
+    StorageClass will use it automatically.
+  </div>
+</section>
+
+<!-- PERSISTENTVOLUME SECTION -->
+<section id="pv" class="section">
+  <h2>PersistentVolume (PV)</h2>
+
+  <div class="card">
+    <h3>What is a PersistentVolume?</h3>
+    <p>
+      A PV is a cluster-level resource that represents a piece of storage in the cluster.
+      It is independent of the lifecycle of any pod using it.
+    </p>
+    <p>
+      PVs can be provisioned <strong>statically</strong> (by an admin) or <strong>dynamically</strong>
+      (by a StorageClass when a PVC is created).
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>Key Fields</h3>
+    <ul style="margin-left:1.5rem;color:var(--muted);">
+      <li><strong>capacity:</strong> Storage size (e.g., <code>10Gi</code>)</li>
+      <li><strong>accessModes:</strong> How the volume can be accessed (<code>RWO</code>, <code>RWX</code>, <code>ROX</code>)</li>
+      <li><strong>persistentVolumeReclaimPolicy:</strong> What happens after PVC deletion</li>
+      <li><strong>storageClassName:</strong> Which StorageClass to use (optional)</li>
+      <li><strong>hostPath / nfs / awsElasticBlockStore:</strong> The actual storage backend</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Access Modes Explained</h3>
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>Mode</th>
+          <th>Full Name</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>RWO</code></td>
+          <td>ReadWriteOnce</td>
+          <td>Can be mounted by a single node (read-write)</td>
+        </tr>
+        <tr>
+          <td><code>RWX</code></td>
+          <td>ReadWriteMany</td>
+          <td>Can be mounted by multiple nodes (read-write)</td>
+        </tr>
+        <tr>
+          <td><code>ROX</code></td>
+          <td>ReadOnlyMany</td>
+          <td>Can be mounted by multiple nodes (read-only)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Example: Static PV (hostPath)</h3>
+    <div class="code-block">
+<span class="comment"># pv-static.yaml</span>
+<span class="key">apiVersion:</span> v1
+<span class="key">kind:</span> PersistentVolume
+<span class="key">metadata:</span>
+  <span class="key">name:</span> <span class="string">pv-static-example</span>
+<span class="key">spec:</span>
+  <span class="key">capacity:</span>
+    <span class="key">storage:</span> <span class="string">5Gi</span>
+  <span class="key">accessModes:</span>
+    - <span class="string">ReadWriteOnce</span>
+  <span class="key">persistentVolumeReclaimPolicy:</span> Retain
+  <span class="key">hostPath:</span>
+    <span class="key">path:</span> <span class="string">/mnt/data</span>
+    </div>
+  </div>
+
+  <div class="highlight-box warning">
+    <strong>Warning:</strong> <code>hostPath</code> is only suitable for development/testing.
+    In production, use cloud provider volumes (EBS, PD, Azure Disk) or network storage (NFS, Ceph).
+  </div>
+</section>
+
+<!-- PERSISTENTVOLUMECLAIM SECTION -->
+<section id="pvc" class="section">
+  <h2>PersistentVolumeClaim (PVC)</h2>
+
+  <div class="card">
+    <h3>What is a PersistentVolumeClaim?</h3>
+    <p>
+      A PVC is a namespace-scoped resource that <strong>requests</strong> storage from the cluster.
+      Think of it as a "storage order" — the pod says "I need 5Gi of storage", and Kubernetes finds
+      or creates a matching PV.
+    </p>
+    <p>
+      PVCs are what developers actually use. They don't care about the underlying storage —
+      they just claim what they need.
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>Key Fields</h3>
+    <ul style="margin-left:1.5rem;color:var(--muted);">
+      <li><strong>accessModes:</strong> Required access mode (must match PV)</li>
+      <li><strong>resources.requests.storage:</strong> How much storage is needed</li>
+      <li><strong>storageClassName:</strong> Which StorageClass to use for dynamic provisioning</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Example: PVC Requesting 5Gi</h3>
+    <div class="code-block">
+<span class="comment"># pvc-request.yaml</span>
+<span class="key">apiVersion:</span> v1
+<span class="key">kind:</span> PersistentVolumeClaim
+<span class="key">metadata:</span>
+  <span class="key">name:</span> <span class="string">my-pvc</span>
+<span class="key">spec:</span>
+  <span class="key">accessModes:</span>
+    - <span class="string">ReadWriteOnce</span>
+  <span class="key">resources:</span>
+    <span class="key">requests:</span>
+      <span class="key">storage:</span> <span class="string">5Gi</span>
+  <span class="key">storageClassName:</span> <span class="string">standard</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Using a PVC in a Pod</h3>
+    <div class="code-block">
+<span class="comment"># pod-with-pvc.yaml</span>
+<span class="key">apiVersion:</span> v1
+<span class="key">kind:</span> Pod
+<span class="key">metadata:</span>
+  <span class="key">name:</span> <span class="string">my-pod</span>
+<span class="key">spec:</span>
+  <span class="key">containers:</span>
+    - <span class="key">name:</span> <span class="string">app</span>
+      <span class="key">image:</span> <span class="string">nginx</span>
+      <span class="key">volumeMounts:</span>
+        - <span class="key">name:</span> <span class="string">my-storage</span>
+          <span class="key">mountPath:</span> <span class="string">/data</span>
+  <span class="key">volumes:</span>
+    - <span class="key">name:</span> <span class="string">my-storage</span>
+      <span class="key">persistentVolumeClaim:</span>
+        <span class="key">claimName:</span> <span class="string">my-pvc</span>
+    </div>
+  </div>
+
+  <div class="highlight-box success">
+    <strong>Best Practice:</strong> Always specify <code>storageClassName</code> in your PVC
+    unless you explicitly want to use the cluster's default. This makes your manifests portable
+    across clusters.
+  </div>
+</section>
+
+<!-- BINDING FLOW SECTION -->
+<section id="binding" class="section">
+  <h2>PV-PVC Binding Flow</h2>
+
+  <div class="diagram">
+    <h3 style="margin-bottom:1.5rem;color:var(--text);">How Binding Works</h3>
+    <div class="flow-diagram">
+      <div class="diagram-box pvc">
+        <div class="label">Step 1</div>
+        <div class="name">Create PVC</div>
+        <div class="desc">User requests storage</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="diagram-box sc">
+        <div class="label">Step 2</div>
+        <div class="name">Check SC</div>
+        <div class="desc">Find provisioner</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="diagram-box pv">
+        <div class="label">Step 3</div>
+        <div class="name">Provision PV</div>
+        <div class="desc">Create storage</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="diagram-box pvc">
+        <div class="label">Step 4</div>
+        <div class="name">Bind</div>
+        <div class="desc">PVC ↔ PV</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="diagram-box pod">
+        <div class="label">Step 5</div>
+        <div class="name">Mount</div>
+        <div class="desc">Pod uses PVC</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Binding Rules</h3>
+    <p>
+      A PVC binds to a PV based on <strong>matching criteria</strong>:
+    </p>
+    <ul style="margin-left:1.5rem;color:var(--muted);">
+      <li>Storage capacity must be ≥ requested size</li>
+      <li>Access modes must match (or be compatible)</li>
+      <li>StorageClass must match (or both be empty)</li>
+      <li>Labels/Selectors can be used for more control</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Binding States</h3>
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>State</th>
+          <th>Meaning</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Available</code></td>
+          <td>PV is free, not bound to any PVC</td>
+        </tr>
+        <tr>
+          <td><code>Bound</code></td>
+          <td>PV is bound to a PVC</td>
+        </tr>
+        <tr>
+          <td><code>Released</code></td>
+          <td>PVC deleted, PV still holds data (reclaim decides next step)</td>
+        </tr>
+        <tr>
+          <td><code>Failed</code></td>
+          <td>Automatic reclamation failed</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Reclaim Policies</h3>
+    <p>
+      What happens to the PV when the PVC is deleted?
+    </p>
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>Policy</th>
+          <th>Behavior</th>
+          <th>Use Case</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Retain</code></td>
+          <td>PV remains, data kept, needs manual cleanup</td>
+          <td>Production, data safety</td>
+        </tr>
+        <tr>
+          <td><code>Delete</code></td>
+          <td>PV and underlying storage are deleted</td>
+          <td>Dev/test, dynamic provisioning</td>
+        </tr>
+        <tr>
+          <td><code>Recycle</code></td>
+          <td>Deprecated — scrub data and make available</td>
+          <td>Legacy only</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="highlight-box warning">
+    <strong>Production Advice:</strong> Use <code>Retain</code> policy for critical data.
+    With <code>Delete</code>, a simple <code>kubectl delete pvc</code> can wipe your data.
+  </div>
+</section>
+
+<!-- INTERACTIVE DEMO SECTION -->
+<section id="demo" class="section">
+  <h2>Interactive Demo</h2>
+
+  <div class="card">
+    <h3>Simulate the PV-PVC Lifecycle</h3>
+    <p>
+      Click the buttons to simulate creating resources in Kubernetes. Watch the logs to understand
+      the sequence of events.
+    </p>
+  </div>
+
+  <div class="interactive-demo">
+    <div class="demo-controls">
+      <button class="demo-btn" id="btn-create-sc" onclick="createSC()">1. Create StorageClass</button>
+      <button class="demo-btn" id="btn-create-pvc" onclick="createPVC()" disabled>2. Create PVC</button>
+      <button class="demo-btn" id="btn-create-pod" onclick="createPod()" disabled>3. Create Pod</button>
+      <button class="demo-btn danger" id="btn-delete-pod" onclick="deletePod()" disabled>4. Delete Pod</button>
+      <button class="demo-btn danger" id="btn-delete-pvc" onclick="deletePVC()" disabled>5. Delete PVC</button>
+      <button class="demo-btn" id="btn-reset" onclick="resetDemo()">Reset</button>
+    </div>
+
+    <div class="demo-output" id="demo-output">
+      <div class="log info">Ready to simulate. Click "Create StorageClass" to begin.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Current State</h3>
+    <div id="state-display">
+      <p><strong>StorageClass:</strong> <span style="color:var(--muted)">Not created</span></p>
+      <p><strong>PVC:</strong> <span style="color:var(--muted)">Not created</span></p>
+      <p><strong>PV:</strong> <span style="color:var(--muted)">Not provisioned</span></p>
+      <p><strong>Pod:</strong> <span style="color:var(--muted)">Not created</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- QUIZ SECTION -->
+<section id="quiz" class="section">
+  <h2>Knowledge Check</h2>
+
+  <div class="quiz-section">
+    <div class="quiz-question">1. Which resource is namespace-scoped?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" onclick="checkAnswer(this, false)">PersistentVolume</div>
+      <div class="quiz-option" onclick="checkAnswer(this, true)">PersistentVolumeClaim</div>
+      <div class="quiz-option" onclick="checkAnswer(this, false)">StorageClass</div>
+    </div>
+    <div class="quiz-feedback" id="feedback-1"></div>
+  </div>
+
+  <div class="quiz-section">
+    <div class="quiz-question">2. What does RWO stand for?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" onclick="checkAnswer(this, false)">ReadWriteOnce</div>
+      <div class="quiz-option" onclick="checkAnswer(this, false)">ReadWriteMany</div>
+      <div class="quiz-option" onclick="checkAnswer(this, true)">ReadWriteOnce (correct)</div>
+    </div>
+    <div class="quiz-feedback" id="feedback-2"></div>
+  </div>
+
+  <div class="quiz-section">
+    <div class="quiz-question">3. Which reclaim policy deletes the PV when PVC is deleted?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" onclick="checkAnswer(this, false)">Retain</div>
+      <div class="quiz-option" onclick="checkAnswer(this, true)">Delete</div>
+      <div class="quiz-option" onclick="checkAnswer(this, false)">Recycle</div>
+    </div>
+    <div class="quiz-feedback" id="feedback-3"></div>
+  </div>
+
+  <div class="quiz-section">
+    <div class="quiz-question">4. Who typically creates StorageClasses?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" onclick="checkAnswer(this, false)">Application Developer</div>
+      <div class="quiz-option" onclick="checkAnswer(this, true)">Cluster Administrator</div>
+      <div class="quiz-option" onclick="checkAnswer(this, false)">Kubernetes automatically</div>
+    </div>
+    <div class="quiz-feedback" id="feedback-4"></div>
+  </div>
+
+  <div class="quiz-section">
+    <div class="quiz-question">5. What happens when a PVC with no StorageClass is created in a cluster with a default StorageClass?</div>
+    <div class="quiz-options">
+      <div class="quiz-option" onclick="checkAnswer(this, false)">It fails immediately</div>
+      <div class="quiz-option" onclick="checkAnswer(this, false)">It waits for manual PV creation</div>
+      <div class="quiz-option" onclick="checkAnswer(this, true)">It uses the default StorageClass for dynamic provisioning</div>
+    </div>
+    <div class="quiz-feedback" id="feedback-5"></div>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <p>Kubernetes Storage Tutorial — Built for DevOps Engineers</p>
+  <p style="margin-top:0.5rem;">Click on any diagram box to jump to that section</p>
+</footer>
+
+<script>
+  function showSection(sectionId) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(sectionId).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // Demo state
+  let demoState = {
+    sc: false,
+    pvc: false,
+    pv: false,
+    pod: false
+  };
+
+  function log(message, type = 'info') {
+    const output = document.getElementById('demo-output');
+    const entry = document.createElement('div');
+    entry.className = `log ${type}`;
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+    output.appendChild(entry);
+    output.scrollTop = output.scrollHeight;
+  }
+
+  function updateStateDisplay() {
+    const display = document.getElementById('state-display');
+    display.innerHTML = `
+      <p><strong>StorageClass:</strong> ${demoState.sc ? '<span style="color:var(--success)">Created</span>' : '<span style="color:var(--muted)">Not created</span>'}</p>
+      <p><strong>PVC:</strong> ${demoState.pvc ? '<span style="color:var(--success)">Created (Bound)</span>' : '<span style="color:var(--muted)">Not created</span>'}</p>
+      <p><strong>PV:</strong> ${demoState.pv ? '<span style="color:var(--success)">Provisioned (Bound)</span>' : '<span style="color:var(--muted)">Not provisioned</span>'}</p>
+      <p><strong>Pod:</strong> ${demoState.pod ? '<span style="color:var(--success)">Running (mounted)</span>' : '<span style="color:var(--muted)">Not created</span>'}</p>
+    `;
+  }
+
+  function createSC() {
+    log('Creating StorageClass "standard"...', 'info');
+    setTimeout(() => {
+      demoState.sc = true;
+      log('StorageClass "standard" created successfully', 'success');
+      document.getElementById('btn-create-sc').classList.add('success');
+      document.getElementById('btn-create-sc').textContent = '✓ SC Created';
+      document.getElementById('btn-create-pvc').disabled = false;
+      updateStateDisplay();
+    }, 800);
+  }
+
+  function createPVC() {
+    log('Creating PVC "my-pvc" requesting 5Gi...', 'info');
+    setTimeout(() => {
+      log('StorageClass "standard" found, initiating dynamic provisioning...', 'info');
+      setTimeout(() => {
+        demoState.pvc = true;
+        demoState.pv = true;
+        log('PV "pvc-abc123" dynamically provisioned (5Gi)', 'success');
+        log('PVC "my-pvc" bound to PV "pvc-abc123"', 'success');
+        document.getElementById('btn-create-pvc').classList.add('success');
+        document.getElementById('btn-create-pvc').textContent = '✓ PVC Created';
+        document.getElementById('btn-create-pod').disabled = false;
+        updateStateDisplay();
+      }, 1000);
+    }, 800);
+  }
+
+  function createPod() {
+    log('Creating Pod "app-pod" with PVC mount...', 'info');
+    setTimeout(() => {
+      demoState.pod = true;
+      log('Pod "app-pod" created, PVC mounted at /data', 'success');
+      document.getElementById('btn-create-pod').classList.add('success');
+      document.getElementById('btn-create-pod').textContent = '✓ Pod Created';
+      document.getElementById('btn-delete-pod').disabled = false;
+      updateStateDisplay();
+    }, 800);
+  }
+
+  function deletePod() {
+    log('Deleting Pod "app-pod"...', 'info');
+    setTimeout(() => {
+      demoState.pod = false;
+      log('Pod "app-pod" deleted. PVC remains bound.', 'info');
+      document.getElementById('btn-create-pod').classList.remove('success');
+      document.getElementById('btn-create-pod').textContent = '3. Create Pod';
+      document.getElementById('btn-delete-pod').disabled = true;
+      document.getElementById('btn-delete-pvc').disabled = false;
+      updateStateDisplay();
+    }, 800);
+  }
+
+  function deletePVC() {
+    log('Deleting PVC "my-pvc"...', 'info');
+    setTimeout(() => {
+      log('Reclaim policy "Delete" triggered...', 'info');
+      setTimeout(() => {
+        demoState.pvc = false;
+        demoState.pv = false;
+        log('PV "pvc-abc123" deleted (underlying storage removed)', 'warning');
+        log('PVC "my-pvc" deleted', 'success');
+        document.getElementById('btn-create-pvc').classList.remove('success');
+        document.getElementById('btn-create-pvc').textContent = '2. Create PVC';
+        document.getElementById('btn-delete-pvc').disabled = true;
+        updateStateDisplay();
+      }, 1000);
+    }, 800);
+  }
+
+  function resetDemo() {
+    demoState = { sc: false, pvc: false, pv: false, pod: false };
+    document.getElementById('demo-output').innerHTML = '<div class="log info">Ready to simulate. Click "Create StorageClass" to begin.</div>';
+    document.getElementById('btn-create-sc').classList.remove('success');
+    document.getElementById('btn-create-sc').textContent = '1. Create StorageClass';
+    document.getElementById('btn-create-pvc').classList.remove('success');
+    document.getElementById('btn-create-pvc').textContent = '2. Create PVC';
+    document.getElementById('btn-create-pod').classList.remove('success');
+    document.getElementById('btn-create-pod').textContent = '3. Create Pod';
+    document.getElementById('btn-create-pvc').disabled = true;
+    document.getElementById('btn-create-pod').disabled = true;
+    document.getElementById('btn-delete-pod').disabled = true;
+    document.getElementById('btn-delete-pvc').disabled = true;
+    updateStateDisplay();
+  }
+
+  function checkAnswer(element, isCorrect) {
+    const parent = element.parentElement;
+    const feedback = parent.nextElementSibling;
+    
+    parent.querySelectorAll('.quiz-option').forEach(opt => {
+      opt.classList.remove('correct', 'incorrect');
+    });
+    
+    if (isCorrect) {
+      element.classList.add('correct');
+      feedback.className = 'quiz-feedback show correct';
+      feedback.textContent = '✓ Correct!';
+    } else {
+      element.classList.add('incorrect');
+      feedback.className = 'quiz-feedback show incorrect';
+      feedback.textContent = '✗ Incorrect. Try again.';
+    }
+  }
+</script>
+
+</body>
+</html>

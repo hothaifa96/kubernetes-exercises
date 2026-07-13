@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: my-pv
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce    # RWO - single node read-write
+  persistentVolumeReclaimPolicy: Retain  # or Delete, Recycle
+  storageClassName: my-sc
+  volumeMode: Filesystem  # or Block
+  hostPath:
+    path: "/home/docker/data" 
+  claimRef:
+    name: my-pvc
+    namespace: default
+  # Node affinity (optional)
+  # nodeAffinity:
+  #   required:
+  #     nodeSelectorTerms:
+  #     - matchExpressions:
+  #       - key: kubernetes.io/hostname
+  #         operator: In
+  #         values:
+  #         - minikube
