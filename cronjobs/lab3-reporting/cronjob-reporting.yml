@@ -1,0 +1,177 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: reporting-cronjob
+  labels:
+    app: reporting
+spec:
+  schedule: "0 9 * * 1"  # Every Monday at 9 AM
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 2
+  concurrencyPolicy: Allow
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: reporting
+        spec:
+          containers:
+          - name: report-generator
+            image: python:3.11-slim
+            command: ["python3", "/app/report_generator.py"]
+            env:
+            - name: REPORT_TYPE
+              value: "weekly"
+            - name: EMAIL_RECIPIENT
+              value: "admin@example.com"
+            - name: REPORT_FORMAT
+              value: "json"
+            volumeMounts:
+            - name: script
+              mountPath: /app
+            - name: reports
+              mountPath: /reports
+          volumes:
+          - name: script
+            configMap:
+              name: reporting-script
+          - name: reports
+            emptyDir: {}
+          restartPolicy: OnFailure
+          backoffLimit: 3
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reporting-script
+data:
+  report_generator.py: |
+    import os
+    import json
+    import random
+    from datetime import datetime, timedelta
+    
+    def generate_usage_data():
+        """Generate sample usage data for the report"""
+        services = ['api-gateway', 'auth-service', 'user-service', 'payment-service', 'notification-service']
+        data = []
+        
+        for service in services:
+            service_data = {
+                "service": service,
+                "requests": random.randint(1000, 50000),
+                "errors": random.randint(0, 100),
+                "avg_response_time": random.uniform(50, 500),
+                "uptime": random.uniform(99.5, 100.0),
+                "cpu_usage": random.uniform(20, 80),
+                "memory_usage": random.uniform(30, 70)
+            }
+            data.append(service_data)
+        
+        return data
+    
+    def generate_system_metrics():
+        """Generate system-wide metrics"""
+        return {
+            "total_requests": random.randint(100000, 500000),
+            "total_errors": random.randint(100, 1000),
+            "avg_response_time": random.uniform(100, 300),
+            "cluster_cpu": random.uniform(40, 90),
+            "cluster_memory": random.uniform(50, 85),
+            "active_pods": random.randint(50, 200),
+            "nodes": random.randint(3, 10)
+        }
+    
+    def generate_report(report_type, email_recipient, format_type):
+        """Generate the actual report"""
+        report = {
+            "report_metadata": {
+                "report_type": report_type,
+                "generated_at": datetime.now().isoformat(),
+                "recipient": email_recipient,
+                "format": format_type
+            },
+            "system_metrics": generate_system_metrics(),
+            "service_metrics": generate_usage_data(),
+            "summary": {
+                "health_status": "healthy",
+                "critical_issues": 0,
+                "warnings": random.randint(0, 3),
+                "recommendations": [
+                    "Monitor memory usage on payment-service",
+                    "Consider scaling api-gateway during peak hours",
+                    "Review error logs for auth-service"
+                ]
+            }
+        }
+        return report
+    
+    def save_report(report, output_dir):
+        """Save report to file"""
+        filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        filepath = os.path.join(output_dir, filename)
+        
+        with open(filepath, 'w') as f:
+            json.dump(report, f, indent=2)
+        
+        return filepath
+    
+    def main():
+        print("=" * 70)
+        print("Scheduled Reporting CronJob - Backend")
+        print("=" * 70)
+        print()
+        
+        report_type = os.environ.get('REPORT_TYPE', 'weekly')
+        email_recipient = os.environ.get('EMAIL_RECIPIENT', 'admin@example.com')
+        report_format = os.environ.get('REPORT_FORMAT', 'json')
+        output_dir = "/reports"
+        
+        print(f"Generating {report_type} report at {datetime.now().isoformat()}")
+        print(f"Recipient: {email_recipient}")
+        print(f"Format: {report_format}")
+        print()
+        
+        # Generate report
+        print("1. Collecting system metrics...")
+        system_metrics = generate_system_metrics()
+        print(f"   Total requests: {system_metrics['total_requests']}")
+        print(f"   Active pods: {system_metrics['active_pods']}")
+        print()
+        
+        print("2. Collecting service metrics...")
+        service_metrics = generate_usage_data()
+        for service in service_metrics:
+            print(f"   {service['service']}: {service['requests']} requests, {service['uptime']:.2f}% uptime")
+        print()
+        
+        print("3. Generating report...")
+        report = generate_report(report_type, email_recipient, report_format)
+        print("   Report generated successfully")
+        print()
+        
+        print("4. Saving report...")
+        filepath = save_report(report, output_dir)
+        print(f"   Report saved to: {filepath}")
+        print()
+        
+        print("5. Report Summary:")
+        print(f"   Health Status: {report['summary']['health_status']}")
+        print(f"   Critical Issues: {report['summary']['critical_issues']}")
+        print(f"   Warnings: {report['summary']['warnings']}")
+        print()
+        
+        print("6. Recommendations:")
+        for rec in report['summary']['recommendations']:
+            print(f"   - {rec}")
+        
+        print()
+        print("=" * 70)
+        print("Report generation completed!")
+        print("=" * 70)
+        
+        return 0
+    
+    if __name__ == "__main__":
+        exit(main())

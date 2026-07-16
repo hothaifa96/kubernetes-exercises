@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: health-check-cronjob
+  labels:
+    app: health-check
+spec:
+  schedule: "*/5 * * * *"  # Every 5 minutes
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: health-check
+        spec:
+          containers:
+          - name: health-checker
+            image: curlimages/curl:latest
+            command: ["/bin/sh", "-c"]
+            args:
+              - |
+                echo "=========================================="
+                echo "Health Check CronJob"
+                echo "=========================================="
+                echo ""
+                echo "Starting health checks at $(date)"
+                echo ""
+                
+                # Check Google
+                echo "1. Checking Google..."
+                curl -s -o /dev/null -w "Google Status: %{http_code}\n" https://www.google.com
+                
+                # Check Kubernetes API
+                echo "2. Checking Kubernetes API..."
+                curl -s -o /dev/null -w "K8s API Status: %{http_code}\n" https://kubernetes.default.svc || echo "K8s API: Not accessible"
+                
+                # Check DNS resolution
+                echo "3. Checking DNS resolution..."
+                nslookup kubernetes.default.svc || echo "DNS: Check failed"
+                
+                echo ""
+                echo "Health check completed at $(date)"
+                echo "=========================================="
+          restartPolicy: OnFailure
+          backoffLimit: 2

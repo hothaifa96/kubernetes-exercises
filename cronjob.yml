@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: demo-cron-job
+  namespace: jobs
+spec:
+  schedule: "* * * * 4"
+  timeZone: "Etc/GMT-3"
+  startingDeadlineSeconds: 2
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: worker
+            image: busybox
+            command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster; sleep 10; echo done
+          restartPolicy: OnFailure

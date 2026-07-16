@@ -1,0 +1,24 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: demo-job
+  namespace: jobs
+  labels:
+    job: demo
+spec:
+  template: # pod to run
+    metadata:
+      name: demo-job-pod
+    spec: # containers to 
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox
+          command: ["sh","-c","echo 'this pod is a job pod ... starting'; sleep 15; echo 'task completed'"]
+  # lifecycle and timeouts 
+  backoffLimit: 2
+  activeDeadlineSeconds: 300 #timeout
+  ttlSecondsAfterFinished: 3600 # auto-delets the job pod after finishing the proccess (success/failure)
+  # scaling
+  parallelism: 3
+  completions: 4
