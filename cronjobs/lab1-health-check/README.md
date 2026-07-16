@@ -3,42 +3,6 @@
 ## Objective
 Learn how to create a CronJob that performs periodic health checks on services.
 
-## Files
-- `cronjob-health.yml` - Kubernetes CronJob manifest
-- `health_check.py` - Python backend script for health checks
-
-## Steps
-
-### 1. Create the CronJob
-```bash
-kubectl apply -f cronjob-health.yml
-```
-
-### 2. Monitor the CronJob
-```bash
-kubectl get cronjobs
-kubectl get jobs
-kubectl get pods
-```
-
-### 3. View Logs from Latest Job
-```bash
-# Get the latest job
-kubectl get jobs --sort-by=.metadata.creationTimestamp
-
-# View logs
-kubectl logs -l app=health-check --tail=-1
-```
-
-### 4. Check CronJob Status
-```bash
-kubectl describe cronjob health-check-cronjob
-```
-
-### 5. Clean Up
-```bash
-kubectl delete cronjob health-check-cronjob
-```
 
 ## Key Concepts
 - **schedule**: Cron expression defining when to run (*/5 * * * * = every 5 minutes)

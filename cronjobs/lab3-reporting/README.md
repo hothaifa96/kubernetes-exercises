@@ -3,44 +3,6 @@
 ## Objective
 Learn how to create a CronJob that generates scheduled reports with system and service metrics.
 
-## Files
-- `cronjob-reporting.yml` - Kubernetes CronJob manifest
-- `report_generator.py` - Python backend script for report generation
-
-## Steps
-
-### 1. Create the CronJob
-```bash
-kubectl apply -f cronjob-reporting.yml
-```
-
-### 2. Monitor the CronJob
-```bash
-kubectl get cronjobs
-kubectl get jobs
-```
-
-### 3. Trigger Manual Run (for testing)
-```bash
-kubectl create job --from=cronjob/reporting-cronjob manual-report-$(date +%s)
-```
-
-### 4. View Logs
-```bash
-kubectl logs -l app=reporting
-```
-
-### 5. Check Job History
-```bash
-kubectl describe cronjob reporting-cronjob
-```
-
-### 6. Clean Up
-```bash
-kubectl delete cronjob reporting-cronjob
-kubectl delete configmap reporting-script
-```
-
 ## Key Concepts
 - **schedule**: Runs every Monday at 9 AM (0 9 * * 1)
 - **concurrencyPolicy: Allow**: Allows overlapping job executions

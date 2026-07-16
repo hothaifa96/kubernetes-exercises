@@ -3,44 +3,6 @@
 ## Objective
 Learn how to create a CronJob that performs automated data cleanup tasks, removing old files based on age.
 
-## Files
-- `cronjob-cleanup.yml` - Kubernetes CronJob manifest
-- `data_cleanup.py` - Python backend script for data cleanup
-
-## Steps
-
-### 1. Create the CronJob
-```bash
-kubectl apply -f cronjob-cleanup.yml
-```
-
-### 2. Monitor the CronJob
-```bash
-kubectl get cronjobs
-kubectl get jobs
-```
-
-### 3. Trigger Manual Run (for testing)
-```bash
-kubectl create job --from=cronjob/data-cleanup-cronjob manual-cleanup-$(date +%s)
-```
-
-### 4. View Logs
-```bash
-kubectl logs -l app=data-cleanup
-```
-
-### 5. Check Job History
-```bash
-kubectl describe cronjob data-cleanup-cronjob
-```
-
-### 6. Clean Up
-```bash
-kubectl delete cronjob data-cleanup-cronjob
-kubectl delete configmap cleanup-script
-```
-
 ## Key Concepts
 - **schedule**: Runs daily at 2 AM (0 2 * * *)
 - **concurrencyPolicy: Forbid**: Prevents overlapping job executions
