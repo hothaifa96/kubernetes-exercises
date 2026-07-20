@@ -7,7 +7,7 @@ is the exercise. You will create every YAML file yourself.
 
 Create one file per resource (or group them, your choice):
 
-| # | File (suggested)      | Kind        | Notes                                                             |
+| # | File (suggested)      | Kind        | Notes                                                             |https://hub.docker.com/repository/docker/hothaifaz11/k3s-exercise/general
 |---|-----------------------|-------------|-------------------------------------------------------------------|
 | 1 | `configmap.yaml`      | ConfigMap   | Holds shared config: `BACKEND_URL`, `APP_TITLE`, `PROCESS_LABEL`, `SEED_COUNT`. |
 | 2 | `backend.yaml`        | Deployment + Service (ClusterIP) | Service **must** be named `backend`, port `8080`. Add probes on `/health`. |
