@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  quiz:
+    build: .
+    ports:
+      - "5000:5000"
+    container_name: docker-k8s-quiz
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
