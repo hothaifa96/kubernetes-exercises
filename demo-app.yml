@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: backend
+
+  template:
+    metadata:
+      labels:
+        app: backend
+
+    spec:
+      containers:
+      - name: backend
+        image: node:24-alpine
+
+        command:
+        - sh
+        - -c
+
+        args:
+        - |
+          mkdir -p /app
+          cd /app
+
+          npm init -y
+          npm install express
+
+          cat <<'EOF' > app.js
+          const express = require("express");
+
+          const app = express();
+
+          app.get("/", (req,res)=>{
+            res.json({
+              message:"Hello from backend",
+              hostname: process.env.HOSTNAME
+            });
+          });
+
+          app.get("/health",(req,res)=>{
+            res.send("OK");
+          });
+
+          app.listen(3000,()=>{
+            console.log("Running on port 3000");
+          });
+          EOF
+
+          node app.js
+
+        ports:
+        - containerPort: 3000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+
+spec:
+  selector:
+    app: backend
+
+  ports:
+  - port: 5000
+    targetPort: 3000

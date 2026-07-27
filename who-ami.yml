@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ip
+  labels:
+    app: ip
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ip
+  template:
+    metadata:
+      labels:
+        app: ip
+    spec:
+      containers:
+      - name: ip
+        image: traefik/whoami
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ip-svc
+  labels:
+    app: ip
+spec:
+  type: ClusterIP
+  selector:
+    app: ip
+  ports:
+  - port: 5001
+    targetPort: 80

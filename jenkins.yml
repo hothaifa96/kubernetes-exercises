@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      containers:
+      - name: jenkins
+        image: jenkins/jenkins
+        ports:
+        - containerPort: 8080
+        env:
+          - name: JENKINS_OPTS
+            value: "--prefix=/jenkins"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: jenkins
+  ports:
+  - port: 8080
+    targetPort: 8080
