@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deploy
+spec:
+  selector:
+    matchLabels:
+      app: frontend-deploy
+  template:
+    metadata:
+      labels:
+        app: frontend-deploy
+    spec:
+      containers:
+      - name: frontend-deploy
+        image: ce-frontend:v1
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 80
+        env:
+          - name: APP_TITLE
+            value: kawabanga
+          - name: API_BASE
+            value: backend-svc.class-exercise.svc.cluster.local

@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deploy
+spec:
+  selector:
+    matchLabels:
+      app: backend-deploy
+  template:
+    metadata:
+      labels:
+        app: backend-deploy
+    spec:
+      containers:
+      - name: backend-deploy
+        image: ce-backend:v1
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 4040
+        env:
+          - name: PORT
+            value: "4040"
+          - name: MONGO_URI
+            value: "mongodb://007:secret-password@mongo-svc.class-exercise.svc.cluster.local:27017"
+          - name: REDIS_HOST
+            value: redis-svc.class-exercise.svc.cluster.local
+          - name: REDIS_PORT
+            value: '6379'
+          - name: FILE_STORE_PATH
+            value: ''
