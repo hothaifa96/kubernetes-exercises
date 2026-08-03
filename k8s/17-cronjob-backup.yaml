@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: shared-backup-nightly
+  namespace: class-exercise
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: backup
+            image: busybox:1.36
+            command: ["/bin/sh", "-c"]
+            args:
+            - |
+              DT=$(date +%Y-%m-%d)
+              mkdir -p "/backup/$DT"
+              cp -a /source/. "/backup/$DT/"
+              echo "Cron backup completed at /backup/$DT"
+            volumeMounts:
+            - name: source
+              mountPath: /source
+            - name: backup
+              mountPath: /backup
+          volumes:
+          - name: source
+            persistentVolumeClaim:
+              claimName: shared-pvc
+          - name: backup
+            persistentVolumeClaim:
+              claimName: backup-pvc
+      backoffLimit: 3
