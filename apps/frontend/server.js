@@ -1,11 +1,11 @@
-const express = require('express');
+const express = require("express");
 
 const app = express();
 const PORT = process.env.PORT || 80;
-const API_BASE = process.env.API_BASE || '/api';
-const APP_TITLE = process.env.APP_TITLE || 'Kubernetes Class App';
+const API_BASE = process.env.API_BASE || "/api";
+const APP_TITLE = process.env.APP_TITLE || "Kubernetes Class App";
 
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -39,7 +39,7 @@ app.get('/', (req, res) => {
 
     async function loadHealth() {
       try {
-        const r = await fetch(API + '/health');
+        const r = await fetch('${API_BASE}' + '/health');
         const data = await r.json();
         document.getElementById('health').textContent = JSON.stringify(data, null, 2);
       } catch (e) {
@@ -49,7 +49,7 @@ app.get('/', (req, res) => {
 
     async function loadItems() {
       try {
-        const r = await fetch(API + '/items');
+        const r = await fetch('${API_BASE}' + '/items');
         const items = await r.json();
         const list = document.getElementById('list');
         list.innerHTML = items.map(i => \`<li>\${i.text} (done: \${i.done})</li>\`).join('');
@@ -72,7 +72,7 @@ app.get('/', (req, res) => {
     };
 
     document.getElementById('visit').onclick = async () => {
-      const r = await fetch(API + '/visits');
+      const r = await fetch('${API_BASE}' + '/visits');
       const data = await r.json();
       document.getElementById('visits').textContent = data.visits;
     };

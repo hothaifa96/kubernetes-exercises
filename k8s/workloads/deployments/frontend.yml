@@ -21,4 +21,4 @@ spec:
           - name: APP_TITLE
             value: kawabanga
           - name: API_BASE
-            value: backend-svc.class-exercise.svc.cluster.local
+            value: '/api'
